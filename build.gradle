@@ -1,0 +1,44 @@
+plugins {
+    id 'java'
+    id 'application'
+    id 'io.vertx.vertx-plugin' version '0.0.4'
+}
+
+group 'es.rodrimmb'
+version '1.0-SNAPSHOT'
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_11
+    targetCompatibility = JavaVersion.VERSION_11
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    compile 'io.vertx:vertx-web:3.9.0'
+    compile 'io.vertx:vertx-web-client:3.9.0'
+    compile 'io.vertx:vertx-jdbc-client:3.9.0'
+    compile 'org.freemarker:freemarker:2.3.30'
+    compile 'com.github.rjeschke:txtmark:0.13'
+    compile 'io.vertx:vertx-jdbc-client'
+    compile 'org.postgresql:postgresql:42.2.12'
+
+    testCompile 'io.vertx:vertx-junit5:3.9.0'
+    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.3.1'
+    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.3.1'
+}
+
+test {
+    useJUnitPlatform()
+    testLogging {
+        events "passed", "skipped", "failed"
+    }
+}
+
+mainClassName = 'es.rodrimmb.wiki.MainVerticle'
+
+vertx {
+    mainVerticle = mainClassName
+}
