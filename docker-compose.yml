@@ -2,7 +2,7 @@ version: '3'
 services:
   database:
     image: "postgres:alpine" # use latest official postgres version
-    container_name: postgres-db
+    container_name: postgres-db-wiki
     env_file:
       - database.env # configure postgres
     volumes:
