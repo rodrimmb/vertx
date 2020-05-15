@@ -11,8 +11,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.*;
 
 
 @ExtendWith(VertxExtension.class)
@@ -27,9 +26,7 @@ class MainVerticleTest {
 
     @Test
     @DisplayName("🚀 Start a server and perform requests")
-    void start_server() {
-        VertxTestContext testContext = new VertxTestContext();
-
+    void start_server(VertxTestContext testContext) {
         WebClient webClient = WebClient.create(vertx);
         vertx.deployVerticle(new MainVerticle(), testContext.succeeding(id -> {
             webClient.get(8080, "localhost", "/")
@@ -37,13 +34,11 @@ class MainVerticleTest {
                     .send(testContext.succeeding(resp -> {
                         testContext.verify(() -> {
                             assertEquals(resp.statusCode(), 200);
-                            assertEquals(resp.body(), "Hello Vert.x!");
+                            assertTrue("Hello Vert.x!".equalsIgnoreCase(resp.body()));
                             testContext.completeNow();
                         });
                     }));
         }));
-
-        assertFalse(testContext.failed());
     }
 
     @AfterEach
