@@ -24,6 +24,7 @@ dependencies {
     compile 'com.github.rjeschke:txtmark:0.13'
     compile 'io.vertx:vertx-jdbc-client'
     compile 'org.postgresql:postgresql:42.2.12'
+    compile 'ch.qos.logback:logback-classic:1.2.3'
 
     testCompile 'io.vertx:vertx-junit5:3.9.0'
     testImplementation 'org.junit.jupiter:junit-jupiter-api:5.3.1'
