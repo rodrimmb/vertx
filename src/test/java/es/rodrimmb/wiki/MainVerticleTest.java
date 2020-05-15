@@ -25,7 +25,7 @@ class MainVerticleTest {
     }
 
     @Test
-    @DisplayName("🚀 Start a server and perform requests")
+    @DisplayName("🚀 Start a server and perform requests to /hello")
     void start_server(VertxTestContext testContext) {
         WebClient webClient = WebClient.create(vertx);
         vertx.deployVerticle(new MainVerticle(), testContext.succeeding(id -> {
@@ -35,6 +35,24 @@ class MainVerticleTest {
                         testContext.verify(() -> {
                             assertEquals(resp.statusCode(), 200);
                             assertTrue("Hello Vert.x!".equalsIgnoreCase(resp.body()));
+                            testContext.completeNow();
+                        });
+                    }));
+        }));
+    }
+
+    @Test
+    @DisplayName("📃 Start a server and perform requests main page")
+    void return_html(VertxTestContext testContext) {
+        WebClient webClient = WebClient.create(vertx);
+        vertx.deployVerticle(new MainVerticle(), testContext.succeeding(id -> {
+            webClient.get(8080, "localhost", "/")
+                    .as(BodyCodec.string())
+                    .send(testContext.succeeding(resp -> {
+                        testContext.verify(() -> {
+                            assertEquals(resp.statusCode(), 200);
+                            assertTrue(resp.body().contains("<h1 class=\"display-1\">Wiki home</h1>"));
+                            assertTrue(resp.body().contains("<title>Home</title>"));
                             testContext.completeNow();
                         });
                     }));

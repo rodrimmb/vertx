@@ -9,8 +9,12 @@ import io.vertx.ext.jdbc.JDBCClient;
 import io.vertx.ext.sql.SQLConnection;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
+import io.vertx.ext.web.templ.freemarker.FreeMarkerTemplateEngine;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.List;
+import java.util.stream.Collectors;
 
 public final class MainVerticle extends AbstractVerticle {
 
@@ -24,7 +28,9 @@ public final class MainVerticle extends AbstractVerticle {
 
     private JDBCClient dbClient;
 
-    private static final String SQL_CREATE_PAGES_TABLE = "CREATE TABLE IF NOT EXISTS pages (id UUID UNIQUE PRIMARY KEY , name VARCHAR (255) UNIQUE , content TEXT)";
+    private static final String SQL_CREATE_PAGES_TABLE = "CREATE TABLE IF NOT EXISTS pages " +
+            "(id UUID UNIQUE PRIMARY KEY , name VARCHAR (255) UNIQUE , content TEXT, creation_date TIMESTAMP)";
+    private static final String SQL_GET_ALL_PAGES = "SELECT name FROM pages";
 
     private Future<Void> prepareDatabase() {
         Promise<Void> promise = Promise.promise();
@@ -61,12 +67,17 @@ public final class MainVerticle extends AbstractVerticle {
         return promise.future();
     }
 
+    private FreeMarkerTemplateEngine templateEngine;
+
     private Future<Void> startHttpServer() {
         Promise<Void> promise = Promise.promise();
         HttpServer server = vertx.createHttpServer();
 
+        templateEngine = FreeMarkerTemplateEngine.create(vertx);
+
         Router router = Router.router(vertx);
         router.get("/hello").handler(this::helloHandler);
+        router.get("/").handler(this::indexHandler);
 
         server
             .requestHandler(router)
@@ -86,5 +97,47 @@ public final class MainVerticle extends AbstractVerticle {
         context.response()
                 .putHeader("Content-Type", "text/text")
                 .end("Hello Vert.x!");
+    }
+
+    /**
+     * Generar el html de la pagina inicial obteniendo las paginas de la DB
+     *
+     * @param context
+     */
+    private void indexHandler(final RoutingContext context) {
+        dbClient.getConnection(asyncResult -> {
+            if(asyncResult.succeeded()) {
+                SQLConnection connection = asyncResult.result();
+                connection.query(SQL_GET_ALL_PAGES, result -> {
+                    connection.close();
+                    if(result.succeeded()) {
+                        List<String> pages = result.result()
+                                .getResults()
+                                .stream()
+                                .map(json -> json.getString(0))
+                                .sorted()
+                                .collect(Collectors.toList());
+
+                        context.put("title", "Home");
+                        context.put("pages", pages);
+                        templateEngine.render(context.data(), "templates/index.ftl", html -> {
+                            if(html.succeeded()) {
+                                context.response()
+                                        .putHeader("Content-Type", "text/html")
+                                        .end(html.result());
+                            } else {
+                                LOG.error("No se ha generado bien la pagina de inicio", html.cause());
+                                context.fail(html.cause());
+                            }
+                        });
+                    } else {
+                        LOG.error("No se han podido obtener las paginas de la BD", result.cause());
+                        context.fail(result.cause());
+                    }
+                });
+            } else {
+                context.fail(asyncResult.cause());
+            }
+        });
     }
 }
