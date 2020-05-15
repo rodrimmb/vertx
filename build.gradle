@@ -20,7 +20,7 @@ dependencies {
     compile 'io.vertx:vertx-web:3.9.0'
     compile 'io.vertx:vertx-web-client:3.9.0'
     compile 'io.vertx:vertx-jdbc-client:3.9.0'
-    compile 'org.freemarker:freemarker:2.3.30'
+    compile 'io.vertx:vertx-web-templ-freemarker:3.9.0'
     compile 'com.github.rjeschke:txtmark:0.13'
     compile 'io.vertx:vertx-jdbc-client'
     compile 'org.postgresql:postgresql:42.2.12'
