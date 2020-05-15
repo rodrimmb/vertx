@@ -3,9 +3,12 @@ package es.rodrimmb.wiki;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Future;
 import io.vertx.core.Promise;
+import io.vertx.core.http.HttpServer;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.jdbc.JDBCClient;
 import io.vertx.ext.sql.SQLConnection;
+import io.vertx.ext.web.Router;
+import io.vertx.ext.web.RoutingContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -60,11 +63,28 @@ public final class MainVerticle extends AbstractVerticle {
 
     private Future<Void> startHttpServer() {
         Promise<Void> promise = Promise.promise();
-        // (...)
-        vertx.createHttpServer()
-                .requestHandler(req -> req.response().end("Hello Vert.x!"))
-                .listen(8080);
-        promise.complete();
+        HttpServer server = vertx.createHttpServer();
+
+        Router router = Router.router(vertx);
+        router.get("/hello").handler(this::helloHandler);
+
+        server
+            .requestHandler(router)
+            .listen(8080, asyncResult -> {
+                if(asyncResult.failed()) {
+                    LOG.error("No se ha podido arrancar el servidor HTTP", asyncResult.cause());
+                    promise.fail(asyncResult.cause());
+                } else {
+                    LOG.info("Servidor HTTP corriendo en el puerto 8080");
+                    promise.complete();
+                }
+            });
         return promise.future();
+    }
+
+    private void helloHandler(final RoutingContext context) {
+        context.response()
+                .putHeader("Content-Type", "text/text")
+                .end("Hello Vert.x!");
     }
 }

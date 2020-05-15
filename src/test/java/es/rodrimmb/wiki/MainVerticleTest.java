@@ -29,7 +29,7 @@ class MainVerticleTest {
     void start_server(VertxTestContext testContext) {
         WebClient webClient = WebClient.create(vertx);
         vertx.deployVerticle(new MainVerticle(), testContext.succeeding(id -> {
-            webClient.get(8080, "localhost", "/")
+            webClient.get(8080, "localhost", "/hello")
                     .as(BodyCodec.string())
                     .send(testContext.succeeding(resp -> {
                         testContext.verify(() -> {
