@@ -11,7 +11,9 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.is;
 
 
 @ExtendWith(VertxExtension.class)
@@ -33,8 +35,8 @@ class MainVerticleTest {
                     .as(BodyCodec.string())
                     .send(testContext.succeeding(resp -> {
                         testContext.verify(() -> {
-                            assertEquals(resp.statusCode(), 200);
-                            assertTrue("Hello Vert.x!".equalsIgnoreCase(resp.body()));
+                            assertThat(resp.statusCode(), is(200));
+                            assertThat(resp.body(), containsString("Hello Vert.x!"));
                             testContext.completeNow();
                         });
                     }));
@@ -42,7 +44,7 @@ class MainVerticleTest {
     }
 
     @Test
-    @DisplayName("📃 Start a server and perform requests main page")
+    @DisplayName("🏠‍️ Start a server and perform requests main page")
     void return_html(VertxTestContext testContext) {
         WebClient webClient = WebClient.create(vertx);
         vertx.deployVerticle(new MainVerticle(), testContext.succeeding(id -> {
@@ -50,9 +52,9 @@ class MainVerticleTest {
                     .as(BodyCodec.string())
                     .send(testContext.succeeding(resp -> {
                         testContext.verify(() -> {
-                            assertEquals(resp.statusCode(), 200);
-                            assertTrue(resp.body().contains("<h1 class=\"display-1\">Wiki home</h1>"));
-                            assertTrue(resp.body().contains("<title>Home</title>"));
+                            assertThat(resp.statusCode(), is(200));
+                            assertThat(resp.body(), containsString("<h1 class=\"display-1\">Wiki home</h1>"));
+                            assertThat(resp.body(), containsString("<title>Home</title>"));
                             testContext.completeNow();
                         });
                     }));
