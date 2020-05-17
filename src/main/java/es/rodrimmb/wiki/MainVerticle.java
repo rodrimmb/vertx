@@ -77,7 +77,7 @@ public final class MainVerticle extends AbstractVerticle {
 
         Router router = Router.router(vertx);
         router.get("/hello").handler(this::helloHandler);
-        router.get("/").handler(this::indexHandler);
+        router.get("/").handler(this::allPagesHandler);
 
         server
             .requestHandler(router)
@@ -104,7 +104,7 @@ public final class MainVerticle extends AbstractVerticle {
      *
      * @param context
      */
-    private void indexHandler(final RoutingContext context) {
+    private void allPagesHandler(final RoutingContext context) {
         dbClient.getConnection(asyncResult -> {
             if(asyncResult.succeeded()) {
                 SQLConnection connection = asyncResult.result();
