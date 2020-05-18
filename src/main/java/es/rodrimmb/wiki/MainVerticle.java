@@ -17,9 +17,7 @@ import org.slf4j.LoggerFactory;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
 public final class MainVerticle extends AbstractVerticle {
@@ -36,7 +34,7 @@ public final class MainVerticle extends AbstractVerticle {
 
     private static final String SQL_CREATE_PAGES_TABLE = "CREATE TABLE IF NOT EXISTS pages " +
             "(id UUID UNIQUE PRIMARY KEY , name VARCHAR (255) UNIQUE , content TEXT, creation_date TIMESTAMP)";
-    private static final String SQL_GET_ALL_PAGES = "SELECT name FROM pages";
+    private static final String SQL_GET_ALL_PAGES = "SELECT id, name FROM pages";
     private static final String SQL_GET_PAGE_BY_NAME = "SELECT * FROM pages WHERE name = ?";
     private static final String SQL_GET_PAGE_BY_ID = "SELECT * FROM pages WHERE id = uuid(?)";
     private static final String SQL_CREATE_PAGE = "INSERT INTO pages VALUES (uuid(?), ?, ?, TO_TIMESTAMP(?, 'YYYY-MM-DD HH24:MI:SS.US'))";
@@ -125,11 +123,10 @@ public final class MainVerticle extends AbstractVerticle {
                 connection.query(SQL_GET_ALL_PAGES, result -> {
                     connection.close();
                     if(result.succeeded()) {
-                        List<String> pages = result.result()
+                        List<Map.Entry<String, String>> pages = result.result()
                                 .getResults()
                                 .stream()
-                                .map(json -> json.getString(0))
-                                .sorted()
+                                .map(json -> Map.entry(json.getString(0), json.getString(1)))
                                 .collect(Collectors.toList());
 
                         context.put("title", "Home");

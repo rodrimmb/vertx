@@ -25,7 +25,7 @@
             <ul>
                 <#list pages as page>
                     <li>
-                        <a href="#">${page}</a>
+                        <a href="/edit/${page.key}">${page.value}</a>
                     </li>
                 </#list>
             </ul>
