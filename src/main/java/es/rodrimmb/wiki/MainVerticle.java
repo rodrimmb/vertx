@@ -1,5 +1,6 @@
 package es.rodrimmb.wiki;
 
+import com.github.rjeschke.txtmark.Processor;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Future;
 import io.vertx.core.Promise;
@@ -88,7 +89,7 @@ public final class MainVerticle extends AbstractVerticle {
         Router router = Router.router(vertx);
         router.get("/hello").handler(this::helloHandler);
         router.get("/").handler(this::allPagesHandler);
-        router.get("/edit/:id").handler(this::editPageHandler);
+        router.get("/wiki/:id").handler(this::pageHandler);
         // Todas las peticiones POST pasan primero por BodyHandler.create() que decodifica los body de estas peticiones,
         // es util para el envio de formularios
         router.post().handler(BodyHandler.create());
@@ -170,15 +171,15 @@ public final class MainVerticle extends AbstractVerticle {
                         Optional<JsonArray> rowOptional = query.result().getResults().stream().findFirst();
                         if(rowOptional.isPresent()) {
                             connection.close();
-                            // Si existe redirigimos a /edit
+                            // Si existe redirigimos a /wiki
                             JsonArray row = rowOptional.get();
                             String id = row.getString(0);
                             context.response()
                                     .setStatusCode(303)
-                                    .putHeader("Location", "/edit/"+id)
+                                    .putHeader("Location", "/wiki/"+id)
                                     .end();
                         } else {
-                            // Si no exite lo creamos y redirigimos a /edit
+                            // Si no exite lo creamos y redirigimos a /wiki
                             String id = UUID.randomUUID().toString();
                             JsonArray paramsCreate = new JsonArray();
                             paramsCreate.add(id).add(name).add("")
@@ -188,7 +189,7 @@ public final class MainVerticle extends AbstractVerticle {
                                 if(create.succeeded()) {
                                     context.response()
                                             .setStatusCode(303)
-                                            .putHeader("Location", "/edit/"+id)
+                                            .putHeader("Location", "/wiki/"+id)
                                             .end();
                                 } else {
                                     LOG.error("Error al insertar en la BD", create.cause());
@@ -208,7 +209,12 @@ public final class MainVerticle extends AbstractVerticle {
         });
     }
 
-    private void editPageHandler(final RoutingContext context) {
+    private static final String EMPTY_PAGE_MARKDOWN =
+            "# A new page\n" +
+                    "\n" +
+                    "Feel-free to write in Markdown!\n";
+
+    private void pageHandler(final RoutingContext context) {
         //Obtener la page con el id de la URL
         String id = context.request().getParam("id");
 
@@ -228,8 +234,9 @@ public final class MainVerticle extends AbstractVerticle {
                             context.put("title", "Edit page");
                             context.put("id", row.getString(0));
                             context.put("name", row.getString(1));
-                            context.put("content", row.getString(2));
-                            templateEngine.render(context.data(), "templates/edit.ftl", html -> {
+                            context.put("content", Processor.process(row.getString(2)));
+                            context.put("rawContent", row.getString(2).isEmpty() ? EMPTY_PAGE_MARKDOWN : row.getString(2));
+                            templateEngine.render(context.data(), "templates/page.ftl", html -> {
                                 if(html.succeeded()) {
                                     context.response()
                                             .putHeader("Content-Type", "text/html")
@@ -278,7 +285,7 @@ public final class MainVerticle extends AbstractVerticle {
                    if(update.succeeded()) {
                        context.response()
                                .setStatusCode(303)
-                               .putHeader("Location", "/edit/"+id)
+                               .putHeader("Location", "/wiki/"+id)
                                .end();
                    } else {
                        LOG.error("Error al actualizar la pagina con id {} en la BD", id, update.cause());
