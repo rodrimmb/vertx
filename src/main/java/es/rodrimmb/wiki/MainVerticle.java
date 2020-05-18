@@ -4,16 +4,22 @@ import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Future;
 import io.vertx.core.Promise;
 import io.vertx.core.http.HttpServer;
+import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.jdbc.JDBCClient;
 import io.vertx.ext.sql.SQLConnection;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
+import io.vertx.ext.web.handler.BodyHandler;
 import io.vertx.ext.web.templ.freemarker.FreeMarkerTemplateEngine;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 public final class MainVerticle extends AbstractVerticle {
@@ -31,6 +37,9 @@ public final class MainVerticle extends AbstractVerticle {
     private static final String SQL_CREATE_PAGES_TABLE = "CREATE TABLE IF NOT EXISTS pages " +
             "(id UUID UNIQUE PRIMARY KEY , name VARCHAR (255) UNIQUE , content TEXT, creation_date TIMESTAMP)";
     private static final String SQL_GET_ALL_PAGES = "SELECT name FROM pages";
+    private static final String SQL_GET_PAGE_BY_NAME = "SELECT * FROM pages WHERE name = ?";
+    private static final String SQL_GET_PAGE_BY_ID = "SELECT * FROM pages WHERE id = uuid(?)";
+    private static final String SQL_CREATE_PAGE = "INSERT INTO pages VALUES (uuid(?), ?, ?, TO_TIMESTAMP(?, 'YYYY-MM-DD HH24:MI:SS.US'))";
 
     private Future<Void> prepareDatabase() {
         Promise<Void> promise = Promise.promise();
@@ -78,6 +87,11 @@ public final class MainVerticle extends AbstractVerticle {
         Router router = Router.router(vertx);
         router.get("/hello").handler(this::helloHandler);
         router.get("/").handler(this::allPagesHandler);
+        router.get("/edit/:id").handler(this::editPageHandler);
+        // Todas las peticiones POST pasan primero por BodyHandler.create() que decodifica los body de estas peticiones,
+        // es util para el envio de formularios
+        router.post().handler(BodyHandler.create());
+        router.post("/create").handler(this::createNewPageHandler);
 
         server
             .requestHandler(router)
@@ -136,6 +150,108 @@ public final class MainVerticle extends AbstractVerticle {
                     }
                 });
             } else {
+                context.fail(asyncResult.cause());
+            }
+        });
+    }
+
+    private void createNewPageHandler(final RoutingContext context) {
+        String name = context.request().formAttributes().get("name").toLowerCase();
+
+        dbClient.getConnection(asyncResult -> {
+            // Buscamos en la BD si ya existe
+            if(asyncResult.succeeded()) {
+                SQLConnection connection = asyncResult.result();
+                JsonArray params = new JsonArray();
+                params.add(name);
+                connection.queryWithParams(SQL_GET_PAGE_BY_NAME, params, query -> {
+                    if(query.succeeded()) {
+                        Optional<JsonArray> rowOptional = query.result().getResults().stream().findFirst();
+                        if(rowOptional.isPresent()) {
+                            connection.close();
+                            // Si existe redirigimos a /edit
+                            JsonArray row = rowOptional.get();
+                            String id = row.getString(0);
+                            context.response()
+                                    .setStatusCode(303)
+                                    .putHeader("Location", "/edit/"+id)
+                                    .end();
+                        } else {
+                            // Si no exite lo creamos y redirigimos a /edit
+                            String id = UUID.randomUUID().toString();
+                            JsonArray paramsCreate = new JsonArray();
+                            paramsCreate.add(id).add(name).add("")
+                                    .add(LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSSSSS")));
+                            connection.updateWithParams(SQL_CREATE_PAGE, paramsCreate, create -> {
+                                connection.close();
+                                if(create.succeeded()) {
+                                    context.response()
+                                            .setStatusCode(303)
+                                            .putHeader("Location", "/edit/"+id)
+                                            .end();
+                                } else {
+                                    LOG.error("Error al insertar en la BD", create.cause());
+                                    context.fail(create.cause());
+                                }
+                            });
+                        }
+                    } else {
+                        LOG.error("Error al consultar en la BD", query.cause());
+                        context.fail(query.cause());
+                    }
+                });
+            } else {
+                LOG.error("No se han podido conectar con la BD", asyncResult.cause());
+                context.fail(asyncResult.cause());
+            }
+        });
+    }
+
+    private void editPageHandler(final RoutingContext context) {
+        //Obtener la page con el id de la URL
+        String id = context.request().getParam("id");
+
+        //Generar plantilla
+        dbClient.getConnection(asyncResult -> {
+            if(asyncResult.succeeded()) {
+                SQLConnection connection = asyncResult.result();
+                JsonArray params = new JsonArray();
+                params.add(id);
+                connection.queryWithParams(SQL_GET_PAGE_BY_ID, params, query -> {
+                    connection.close();
+                    if(query.succeeded()) {
+                        Optional<JsonArray> rowOpt = query.result().getResults().stream().findFirst();
+                        if(rowOpt.isPresent()) {
+                            JsonArray row = rowOpt.get();
+
+                            context.put("title", "Edit page");
+                            context.put("id", row.getString(0));
+                            context.put("name", row.getString(1));
+                            context.put("content", row.getString(2));
+                            templateEngine.render(context.data(), "templates/edit.ftl", html -> {
+                                if(html.succeeded()) {
+                                    context.response()
+                                            .putHeader("Content-Type", "text/html")
+                                            .end(html.result());
+                                } else {
+                                    LOG.error("No se ha generado bien la pagina de edicion", html.cause());
+                                    context.fail(html.cause());
+                                }
+                            });
+                        } else {
+                            LOG.warn("La pagina con id {} no existe", id);
+                            context.response()
+                                    .setStatusCode(303)
+                                    .putHeader("Location", "/")
+                                    .end();
+                        }
+                    } else {
+                        LOG.error("Error al consultar en la BD", query.cause());
+                        context.fail(query.cause());
+                    }
+                });
+            } else {
+                LOG.error("No se han podido conectar con la BD", asyncResult.cause());
                 context.fail(asyncResult.cause());
             }
         });
