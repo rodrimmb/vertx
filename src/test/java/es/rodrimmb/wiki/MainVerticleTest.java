@@ -1,5 +1,6 @@
 package es.rodrimmb.wiki;
 
+import io.vertx.core.MultiMap;
 import io.vertx.core.Vertx;
 import io.vertx.ext.web.client.WebClient;
 import io.vertx.ext.web.codec.BodyCodec;
@@ -53,7 +54,7 @@ class MainVerticleTest {
                     .send(testContext.succeeding(resp -> {
                         testContext.verify(() -> {
                             assertThat(resp.statusCode(), is(200));
-                            assertThat(resp.body(), containsString("<h1 class=\"display-1\">Wiki home</h1>"));
+                            assertThat(resp.body(), containsString(">Wiki home<"));
                             assertThat(resp.body(), containsString("<title>Home</title>"));
                             testContext.completeNow();
                         });
