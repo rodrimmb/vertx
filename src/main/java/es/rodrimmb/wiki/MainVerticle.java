@@ -33,11 +33,14 @@ public final class MainVerticle extends AbstractVerticle {
     private JDBCClient dbClient;
 
     private static final String SQL_CREATE_PAGES_TABLE = "CREATE TABLE IF NOT EXISTS pages " +
-            "(id UUID UNIQUE PRIMARY KEY , name VARCHAR (255) UNIQUE , content TEXT, creation_date TIMESTAMP)";
+            "(id UUID UNIQUE PRIMARY KEY , name VARCHAR (255) UNIQUE , content TEXT, creation_date TIMESTAMP, update_date TIMESTAMP)";
     private static final String SQL_GET_ALL_PAGES = "SELECT id, name FROM pages";
     private static final String SQL_GET_PAGE_BY_NAME = "SELECT * FROM pages WHERE name = ?";
     private static final String SQL_GET_PAGE_BY_ID = "SELECT * FROM pages WHERE id = uuid(?)";
-    private static final String SQL_CREATE_PAGE = "INSERT INTO pages VALUES (uuid(?), ?, ?, TO_TIMESTAMP(?, 'YYYY-MM-DD HH24:MI:SS.US'))";
+    private static final String SQL_CREATE_PAGE = "INSERT INTO pages VALUES (uuid(?), ?, ?, " +
+            "TO_TIMESTAMP(?, 'YYYY-MM-DD HH24:MI:SS.US'))";
+    private static final String SQL_UPDATE_PAGE = "UPDATE pages SET content = ?, update_date = " +
+            "TO_TIMESTAMP(?, 'YYYY-MM-DD HH24:MI:SS.US') WHERE id = uuid(?)";
 
     private Future<Void> prepareDatabase() {
         Promise<Void> promise = Promise.promise();
@@ -90,6 +93,7 @@ public final class MainVerticle extends AbstractVerticle {
         // es util para el envio de formularios
         router.post().handler(BodyHandler.create());
         router.post("/create").handler(this::createNewPageHandler);
+        router.post("/save").handler(this::pageUpdateHandler);
 
         server
             .requestHandler(router)
@@ -251,6 +255,40 @@ public final class MainVerticle extends AbstractVerticle {
                 LOG.error("No se han podido conectar con la BD", asyncResult.cause());
                 context.fail(asyncResult.cause());
             }
+        });
+    }
+
+    private void pageUpdateHandler(final RoutingContext context) {
+        String id = context.request().getParam("id");
+        String name = context.request().getParam("name");
+        String content = context.request().getParam("markdown");
+
+        LOG.info("La pagina con id {} y nombre {}, se le va a poner el contenido: {}", id, name, content);
+
+        dbClient.getConnection(asyncResult -> {
+           if(asyncResult.succeeded()) {
+               SQLConnection connection = asyncResult.result();
+               JsonArray params = new JsonArray();
+               params
+                       .add(content)
+                       .add(LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSSSSS")))
+                       .add(id);
+               connection.updateWithParams(SQL_UPDATE_PAGE, params, update -> {
+                   connection.close();
+                   if(update.succeeded()) {
+                       context.response()
+                               .setStatusCode(303)
+                               .putHeader("Location", "/edit/"+id)
+                               .end();
+                   } else {
+                       LOG.error("Error al actualizar la pagina con id {} en la BD", id, update.cause());
+                       context.fail(update.cause());
+                   }
+               });
+           } else {
+               LOG.error("No se han podido conectar con la BD", asyncResult.cause());
+               context.fail(asyncResult.cause());
+           }
         });
     }
 }
