@@ -1,8 +1,7 @@
 plugins {
     id 'java'
     id 'application'
-    id 'io.vertx.vertx-plugin' version '0.0.4'
-    id 'com.github.johnrengelman.shadow' version '4.0.1'
+    id 'com.github.johnrengelman.shadow' version '5.2.0'
 }
 
 group 'es.rodrimmb'
@@ -40,8 +39,13 @@ test {
     }
 }
 
-mainClassName = 'es.rodrimmb.wiki.MainVerticle'
+mainClassName = 'io.vertx.core.Launcher'
 
-vertx {
-    mainVerticle = mainClassName
+shadowJar {
+    manifest {
+        attributes 'Main-Verticle': 'es.rodrimmb.wiki.MainVerticle'
+    }
+    mergeServiceFiles {
+        include 'META-INF/services/io.vertx.core.spi.VerticleFactory'
+    }
 }
