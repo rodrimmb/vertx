@@ -166,7 +166,7 @@ public final class MainVerticle extends AbstractVerticle {
     }
 
     private void createNewPageHandler(final RoutingContext context) {
-        String name = context.request().formAttributes().get("name").toLowerCase();
+        String name = context.request().getParam("name");
 
         dbClient.getConnection(asyncResult -> {
             // Buscamos en la BD si ya existe
