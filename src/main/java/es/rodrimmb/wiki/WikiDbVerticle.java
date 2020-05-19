@@ -15,6 +15,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Optional;
 import java.util.Properties;
 import java.util.stream.Collectors;
 
@@ -89,6 +90,9 @@ public final class WikiDbVerticle extends AbstractVerticle {
             case "all-pages":
                 fetchAllPages(message);
                 break;
+            case "get-page-by-id":
+                fetchPageById(message);
+                break;
             default:
                 message.fail(ErrorCodes.BAD_ACTION.ordinal(), "Bad action: " + action);
         }
@@ -107,6 +111,33 @@ public final class WikiDbVerticle extends AbstractVerticle {
                 message.reply(new JsonObject().put("pages", new JsonArray(pages)));
             } else {
                 reportQueryError(message, result.cause());
+            }
+        });
+    }
+
+    private void fetchPageById(final Message<JsonObject> message) {
+        JsonObject body = message.body();
+        JsonArray params = new JsonArray().add(body.getString("id"));
+
+        dbClient.queryWithParams(sqlQueries.get(SqlQuery.GET_PAGE_BY_ID), params, query -> {
+            if(query.succeeded()) {
+                Optional<JsonArray> rowOpt = query.result().getResults().stream().findFirst();
+                JsonObject response = new JsonObject();
+                if(rowOpt.isPresent()) {
+                    JsonArray row = rowOpt.get();
+                    response.put("found", true);
+                    response.put("id", row.getString(0));
+                    response.put("name", row.getString(1));
+                    response.put("content", row.getString(2));
+                    response.put("creation_date", row.getString(3));
+                    response.put("update_date", row.getString(4));
+                    response.put("delete_date", row.getString(5));
+                } else {
+                    response.put("found", false);
+                }
+                message.reply(response);
+            } else {
+                reportQueryError(message, query.cause());
             }
         });
     }

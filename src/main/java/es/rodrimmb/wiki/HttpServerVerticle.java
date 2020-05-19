@@ -1,5 +1,6 @@
 package es.rodrimmb.wiki;
 
+import com.github.rjeschke.txtmark.Processor;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Promise;
 import io.vertx.core.eventbus.DeliveryOptions;
@@ -34,6 +35,7 @@ public final class HttpServerVerticle extends AbstractVerticle {
         Router router = Router.router(vertx);
         router.get("/hello").handler(this::helloHandler);
         router.get("/").handler(this::allPagesHandler);
+        router.get("/wiki/:id").handler(this::pageHandler);
 
         int portNumbre = config().getInteger(CONFIG_HTTP_SERVER_PORT, 8080);
         server
@@ -71,6 +73,43 @@ public final class HttpServerVerticle extends AbstractVerticle {
                     } else {
                         LOG.error("No se ha podido renderizar bien la pagina de inicio", asyncResult.cause());
                         context.fail(asyncResult.cause());
+                    }
+                });
+            } else {
+                LOG.error("La cola {} no ha respondido correctamente", wikiDbQueue, reply.cause());
+                context.fail(reply.cause());
+            }
+        });
+    }
+
+    private static final String EMPTY_PAGE_MARKDOWN =
+            "# A new page\n" +
+                    "\n" +
+                    "Feel-free to write in Markdown!\n";
+
+    private void pageHandler(final RoutingContext context) {
+        //Obtener la page con el id de la URL
+        String id = context.request().getParam("id");
+        JsonObject message = new JsonObject().put("id", id);
+
+        DeliveryOptions options = new DeliveryOptions().addHeader("action", "get-page-by-id");
+
+        vertx.eventBus().request(wikiDbQueue, message, options, reply -> {
+            if(reply.succeeded()) {
+                JsonObject body = (JsonObject) reply.result().body();
+                context.put("title", "Edit page");
+                context.put("id", body.getString("id"));
+                context.put("name", body.getString("name"));
+                context.put("content", Processor.process(body.getString("content")));
+                context.put("rawContent", body.getString("content").isEmpty() ? EMPTY_PAGE_MARKDOWN : body.getString("content"));
+                templateEngine.render(context.data(), "templates/page.ftl", html -> {
+                    if(html.succeeded()) {
+                        context.response()
+                                .putHeader("Content-Type", "text/html")
+                                .end(html.result());
+                    } else {
+                        LOG.error("No se ha generado bien la pagina de edicion", html.cause());
+                        context.fail(html.cause());
                     }
                 });
             } else {
