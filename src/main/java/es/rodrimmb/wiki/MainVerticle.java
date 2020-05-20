@@ -19,8 +19,9 @@ public final class MainVerticle extends AbstractVerticle {
             Promise<String> httpVerticleDeployment = Promise.promise();
             vertx.deployVerticle(
                     "es.rodrimmb.wiki.HttpServerVerticle",
-            new DeploymentOptions().setInstances(2),
-            httpVerticleDeployment);
+                    new DeploymentOptions().setInstances(2),
+                    httpVerticleDeployment
+            );
 
             return httpVerticleDeployment.future();
         }).onComplete(asyncResult -> {
