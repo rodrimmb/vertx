@@ -22,7 +22,7 @@ import java.util.stream.Collectors;
 public final class WikiDbVerticle extends AbstractVerticle {
 
     private static final Logger LOG = LoggerFactory.getLogger(WikiDbVerticle.class);
-    private static final String CONFIG_WIKIDB_SQL_QUERIES_RESOURCE_FILE = "db-queries.properties";
+    private static final String CONFIG_WIKIDB_SQL_QUERIES_RESOURCE_FILE = "wikidb.queries.file";
 
     public static final String CONFIG_WIKIDB_JDBC_URL = "wikidb.jdbc.url";
     public static final String CONFIG_WIKIDB_JDBC_DB = "wikidb.jdbc.db";
@@ -93,6 +93,18 @@ public final class WikiDbVerticle extends AbstractVerticle {
             case "get-page-by-id":
                 fetchPageById(message);
                 break;
+            case "get-page-by-name":
+                fetchPageByName(message);
+                break;
+            case "create-page":
+                createPage(message);
+                break;
+            case "save-page":
+                savePage(message);
+                break;
+            case "delete-page":
+                deletePage(message);
+                break;
             default:
                 message.fail(ErrorCodes.BAD_ACTION.ordinal(), "Bad action: " + action);
         }
@@ -142,6 +154,85 @@ public final class WikiDbVerticle extends AbstractVerticle {
         });
     }
 
+    private void fetchPageByName(final Message<JsonObject> message) {
+        JsonObject body = message.body();
+        JsonArray params = new JsonArray().add(body.getString("name"));
+
+        dbClient.queryWithParams(sqlQueries.get(SqlQuery.GET_PAGE_BY_NAME), params, query -> {
+            if(query.succeeded()) {
+                Optional<JsonArray> rowOpt = query.result().getResults().stream().findFirst();
+                JsonObject response = new JsonObject();
+                if(rowOpt.isPresent()) {
+                    JsonArray row = rowOpt.get();
+                    response.put("found", true);
+                    response.put("id", row.getString(0));
+                    response.put("name", row.getString(1));
+                    response.put("content", row.getString(2));
+                    response.put("creation_date", row.getString(3));
+                    response.put("update_date", row.getString(4));
+                    response.put("delete_date", row.getString(5));
+                } else {
+                    response.put("found", false);
+                }
+                message.reply(response);
+            } else {
+                reportQueryError(message, query.cause());
+            }
+        });
+    }
+
+    private void createPage(final Message<JsonObject> message) {
+        JsonObject body = message.body();
+
+        JsonArray params = new JsonArray()
+                .add(body.getString("id"))
+                .add(body.getString("name"))
+                .add(body.getString("content"))
+                .add(body.getString("creation_date"));
+
+        dbClient.updateWithParams(sqlQueries.get(SqlQuery.CREATE_PAGE), params, update -> {
+            if(update.succeeded()) {
+                message.reply("ok");
+            } else {
+                reportQueryError(message, update.cause());
+            }
+        });
+    }
+
+    private void savePage(final Message<JsonObject> message) {
+        JsonObject body = message.body();
+
+        JsonArray params = new JsonArray()
+                .add(body.getString("content"))
+                .add(body.getString("update_date"))
+                .add(body.getString("id"));
+
+        dbClient.updateWithParams(sqlQueries.get(SqlQuery.UPDATE_PAGE), params, update -> {
+            if(update.succeeded()) {
+                message.reply("ok");
+            } else {
+                reportQueryError(message, update.cause());
+            }
+        });
+    }
+
+    private void deletePage(final Message<JsonObject> message) {
+        JsonObject body = message.body();
+
+        JsonArray params = new JsonArray()
+                .add(body.getString("name"))
+                .add(body.getString("delete_date"))
+                .add(body.getString("id"));
+
+        dbClient.updateWithParams(sqlQueries.get(SqlQuery.DELETE_PAGE), params, update -> {
+            if(update.succeeded()) {
+                message.reply("ok");
+            } else {
+                reportQueryError(message, update.cause());
+            }
+        });
+    }
+
     private void reportQueryError(final Message<JsonObject> message, final Throwable cause) {
         LOG.error("Error al ejecutar query en la DB", cause);
         message.fail(ErrorCodes.DB_ERROR.ordinal(), cause.getMessage());
@@ -177,7 +268,7 @@ public final class WikiDbVerticle extends AbstractVerticle {
         sqlQueries.put(SqlQuery.GET_PAGE_BY_NAME, queriesProps.getProperty("get-page-by-name"));
         sqlQueries.put(SqlQuery.GET_PAGE_BY_ID, queriesProps.getProperty("get-page-by-id"));
         sqlQueries.put(SqlQuery.CREATE_PAGE, queriesProps.getProperty("create-page"));
-        sqlQueries.put(SqlQuery.UPDATE_PAGE, queriesProps.getProperty("update-page"));
+        sqlQueries.put(SqlQuery.UPDATE_PAGE, queriesProps.getProperty("save-page"));
         sqlQueries.put(SqlQuery.DELETE_PAGE, queriesProps.getProperty("delete-page"));
     }
 
