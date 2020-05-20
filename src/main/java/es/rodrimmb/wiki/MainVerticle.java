@@ -12,6 +12,10 @@ public final class MainVerticle extends AbstractVerticle {
 
     @Override
     public void start(Promise<Void> promise) {
+        //Como el verticle que conecta con la DB debe estar arrancado antes que el servidor HTTP y los arranques son
+        //asincronos debemos asegurarnos de que WikiDbVerticle se despliega antes que HttpServerVerticle. Para ello
+        //usamos Promise y su metodo compose() que hace que hasta que una promesa no se a acabado no se ejecuta lo que
+        //tenemos en el metodo compose() (future() asegura que la Promise a acabado de ejecutarse y ejecuta compose())
         Promise<String> dbVerticleDeployment = Promise.promise();
         vertx.deployVerticle(new WikiDbVerticle(), dbVerticleDeployment);
 
