@@ -22,7 +22,6 @@ import java.util.stream.Collectors;
 public final class WikiDbVerticle extends AbstractVerticle {
 
     private static final Logger LOG = LoggerFactory.getLogger(WikiDbVerticle.class);
-    private static final String CONFIG_WIKIDB_SQL_QUERIES_RESOURCE_FILE = "wikidb.queries.file";
 
     public static final String CONFIG_WIKIDB_JDBC_URL = "wikidb.jdbc.url";
     public static final String CONFIG_WIKIDB_JDBC_DB = "wikidb.jdbc.db";
@@ -30,6 +29,7 @@ public final class WikiDbVerticle extends AbstractVerticle {
     public static final String CONFIG_WIKIDB_JDBC_PASSWORD = "wikidb.jdbc.password";
     public static final String CONFIG_WIKIDB_JDBC_DRIVER = "wikidb.jdbc.driver";
     public static final String CONFIG_WIKIDB_JDBC_MAX_POOL_SIZE = "wikidb.jdbc.max_pool_size";
+    public static final String CONFIG_WIKIDB_SQL_QUERIES_RESOURCE_FILE = "wikidb.sqlqueries.resource.file";
 
     public static final String CONFIG_WIKIDB_QUEUE = "wikidb.queue";
 
@@ -247,10 +247,10 @@ public final class WikiDbVerticle extends AbstractVerticle {
         UPDATE_PAGE,
         DELETE_PAGE
     }
+
     private final HashMap<SqlQuery, String> sqlQueries = new HashMap<>();
 
     private void loadSqlQueries() throws IOException {
-
         String queriesFile = config().getString(CONFIG_WIKIDB_SQL_QUERIES_RESOURCE_FILE);
         InputStream queriesInputStream;
         if (queriesFile != null) {
