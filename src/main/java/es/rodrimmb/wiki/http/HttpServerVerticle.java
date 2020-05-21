@@ -1,9 +1,9 @@
-package es.rodrimmb.wiki;
+package es.rodrimmb.wiki.http;
 
 import com.github.rjeschke.txtmark.Processor;
+import es.rodrimmb.wiki.database.WikiDbService;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Promise;
-import io.vertx.core.eventbus.DeliveryOptions;
 import io.vertx.core.http.HttpServer;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.Router;
@@ -28,10 +28,12 @@ public final class HttpServerVerticle extends AbstractVerticle {
     private String wikiDbQueue = "wikidb.queue";
 
     private FreeMarkerTemplateEngine templateEngine;
+    private WikiDbService dbService;
 
     @Override
     public void start(final Promise<Void> promise) throws Exception {
         wikiDbQueue = config().getString(CONFIG_WIKIDB_QUEUE, "wikidb.queue");
+        dbService = WikiDbService.createProxy(vertx, wikiDbQueue);
 
         HttpServer server = vertx.createHttpServer();
 
@@ -69,13 +71,10 @@ public final class HttpServerVerticle extends AbstractVerticle {
     }
 
     private void allPagesHandler(final RoutingContext context) {
-        DeliveryOptions options = new DeliveryOptions().addHeader("action", "all-pages");
-
-        vertx.eventBus().request(wikiDbQueue, new JsonObject(), options, reply -> {
+        dbService.fetchAllPages(reply -> {
             if(reply.succeeded()) {
-                JsonObject body = (JsonObject) reply.result().body();
                 context.put("title", "Wiki Home");
-                context.put("pages", body.getJsonArray("pages").getList());
+                context.put("pages", reply.result().getList());
                 templateEngine.render(context.data(), "templates/index.ftl", asyncResult -> {
                     if(asyncResult.succeeded()) {
                         context.response()
@@ -87,7 +86,7 @@ public final class HttpServerVerticle extends AbstractVerticle {
                     }
                 });
             } else {
-                LOG.error("La cola {} no ha respondido correctamente", wikiDbQueue, reply.cause());
+                LOG.error("El servicio de DB no ha respondido correctamente", reply.cause());
                 context.fail(reply.cause());
             }
         });
@@ -101,46 +100,39 @@ public final class HttpServerVerticle extends AbstractVerticle {
     private void pageHandler(final RoutingContext context) {
         //Obtener la page con el id de la URL
         String id = context.request().getParam("id");
-        JsonObject message = new JsonObject().put("id", id);
-
-        DeliveryOptions options = new DeliveryOptions().addHeader("action", "get-page-by-id");
-
-        vertx.eventBus().request(wikiDbQueue, message, options, reply -> {
-            if(reply.succeeded()) {
-                JsonObject body = (JsonObject) reply.result().body();
-                String content = body.getString("content") == null ? "" : body.getString("content");
-                context.put("title", "Edit page");
-                context.put("id", body.getString("id"));
-                context.put("name", body.getString("name"));
-                context.put("content", content.isEmpty() ? Processor.process(EMPTY_PAGE_MARKDOWN) : Processor.process(content));
-                context.put("rawContent", content.isEmpty() ? EMPTY_PAGE_MARKDOWN : content);
-                templateEngine.render(context.data(), "templates/page.ftl", html -> {
-                    if(html.succeeded()) {
-                        context.response()
-                                .putHeader("Content-Type", "text/html")
-                                .end(html.result());
-                    } else {
-                        LOG.error("No se ha generado bien la pagina de edicion", html.cause());
-                        context.fail(html.cause());
-                    }
-                });
-            } else {
-                LOG.error("La cola {} no ha respondido correctamente", wikiDbQueue, reply.cause());
-                context.fail(reply.cause());
-            }
+        dbService.fetchPageById(id, reply -> {
+           if(reply.succeeded()) {
+               JsonObject json = reply.result();
+               String content = json.getString("content") == null ? "" : json.getString("content");
+               context.put("title", "Edit page");
+               context.put("id", json.getString("id"));
+               context.put("name", json.getString("name"));
+               context.put("content", content.isEmpty() ? Processor.process(EMPTY_PAGE_MARKDOWN) : Processor.process(content));
+               context.put("rawContent", content.isEmpty() ? EMPTY_PAGE_MARKDOWN : content);
+               templateEngine.render(context.data(), "templates/page.ftl", html -> {
+                   if(html.succeeded()) {
+                       context.response()
+                               .putHeader("Content-Type", "text/html")
+                               .end(html.result());
+                   } else {
+                       LOG.error("No se ha generado bien la pagina de edicion", html.cause());
+                       context.fail(html.cause());
+                   }
+               });
+           } else {
+               LOG.error("El servicio de DB no ha respondido correctamente", reply.cause());
+               context.fail(reply.cause());
+           }
         });
     }
 
     private void createNewPageHandler(final RoutingContext context) {
-        String name = context.request().getParam("name");
-        JsonObject message = new JsonObject().put("name", name);
-
-        DeliveryOptions options = new DeliveryOptions().addHeader("action", "get-page-by-name");
+        String name = context.request().getParam("name").toLowerCase();
 
         //Primero buscamos si ya existe la pagina
-        vertx.eventBus().request(wikiDbQueue, message, options, reply -> {
+        dbService.fetchPageByName(name, reply -> {
             if(reply.succeeded()) {
-                JsonObject body = (JsonObject) reply.result().body();
+                JsonObject body = reply.result();
                 if(body.getBoolean("found")) {
                     //Si existe dirigimos a su pagina
                     context.response()
@@ -149,82 +141,61 @@ public final class HttpServerVerticle extends AbstractVerticle {
                             .end();
                 } else {
                     //Si no existe creamos la pagina
-                    DeliveryOptions createOptions = new DeliveryOptions().addHeader("action", "create-page");
                     String id = UUID.randomUUID().toString();
-                    JsonObject createMessage = new JsonObject()
-                            .put("id", id)
-                            .put("name", name)
-                            .put("creation_date", LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSSSSS")));
-
-                    vertx.eventBus().request(wikiDbQueue, createMessage, createOptions, create -> {
+                    String creationDate = LocalDateTime.now()
+                            .format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSSSSS"));
+                    dbService.createPage(id, name, creationDate, create -> {
                         if(create.succeeded()) {
                             context.response()
                                     .setStatusCode(303)
                                     .putHeader("Location", "/wiki/"+id)
                                     .end();
                         } else {
-                            LOG.error("La cola {} no ha respondido correctamente a la accion {}",
-                                    wikiDbQueue, createOptions.getHeaders().get("action"), create.cause());
+                            LOG.error("El servicio de DB no ha respondido correctamente", reply.cause());
                             context.fail(create.cause());
                         }
                     });
                 }
             } else {
-                LOG.error("La cola {} no ha respondido correctamente a la accion {}",
-                        wikiDbQueue, options.getHeaders().get("action"), reply.cause());
+                LOG.error("El servicio de DB no ha respondido correctamente", reply.cause());
                 context.fail(reply.cause());
             }
         });
-
     }
 
     private void pageUpdateHandler(final RoutingContext context) {
         String id = context.request().getParam("id");
-        String name = context.request().getParam("name");
         String content = context.request().getParam("markdown");
+        String updateDate = LocalDateTime.now()
+                .format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSSSSS"));
 
-        JsonObject message = new JsonObject()
-                .put("id", id)
-                .put("name", name)
-                .put("content", content);
-
-        DeliveryOptions options = new DeliveryOptions().addHeader("action", "save-page");
-
-        vertx.eventBus().request(wikiDbQueue, message, options, reply -> {
+        dbService.savePage(id, content, updateDate, reply -> {
             if(reply.succeeded()) {
                 context.response()
                         .setStatusCode(303)
                         .putHeader("Location", "/wiki/"+id)
                         .end();
             } else {
-                LOG.error("La cola {} no ha respondido correctamente a la accion {}",
-                        wikiDbQueue, options.getHeaders().get("action"), reply.cause());
+                LOG.error("El servicio de DB no ha respondido correctamente", reply.cause());
                 context.fail(reply.cause());
             }
         });
     }
 
     private void pageDeleteHandler(final RoutingContext context) {
-        String id = context.request().getParam("id");
-        String name = context.request().getParam("name");
-
         LocalDateTime now = LocalDateTime.now();
-        JsonObject message = new JsonObject()
-                .put("id", id)
-                .put("name", name + "_deleted_"+now.hashCode())
-                .put("delete_date", now.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSSSSS")));
+        String id = context.request().getParam("id");
+        String name = context.request().getParam("name") + "_deleted_"+now.hashCode();
+        String deleteDate = now.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSSSSS"));
 
-        DeliveryOptions options = new DeliveryOptions().addHeader("action", "delete-page");
-
-        vertx.eventBus().request(wikiDbQueue, message, options, reply -> {
+        dbService.deletePage(id, name, deleteDate, reply -> {
             if(reply.succeeded()) {
                 context.response()
                         .setStatusCode(303)
                         .putHeader("Location", "/")
                         .end();
             } else {
-                LOG.error("La cola {} no ha respondido correctamente a la accion {}",
-                        wikiDbQueue, options.getHeaders().get("action"), reply.cause());
+                LOG.error("El servicio de DB no ha respondido correctamente", reply.cause());
                 context.fail(reply.cause());
             }
         });
