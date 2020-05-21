@@ -18,6 +18,7 @@ repositories {
 
 dependencies {
     compile 'io.vertx:vertx-web:3.9.0'
+    compile 'io.vertx:vertx-service-proxy:3.9.0'
     compile 'io.vertx:vertx-web-client:3.9.0'
     compile 'io.vertx:vertx-jdbc-client:3.9.0'
     compile 'io.vertx:vertx-web-templ-freemarker:3.9.0'
@@ -26,10 +27,15 @@ dependencies {
     compile 'org.postgresql:postgresql:42.2.12'
     compile 'ch.qos.logback:logback-classic:1.2.3'
 
+    compileOnly 'io.vertx:vertx-codegen:3.9.0'
+
     testCompile 'io.vertx:vertx-junit5:3.9.0'
     testImplementation 'org.junit.jupiter:junit-jupiter-api:5.3.1'
     testImplementation 'org.hamcrest:hamcrest-library:2.2'
     testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.3.1'
+
+    annotationProcessor 'io.vertx:vertx-codegen:3.9.0'
+    annotationProcessor 'io.vertx:vertx-service-proxy:3.9.0'
 }
 
 test {
@@ -49,3 +55,34 @@ shadowJar {
         include 'META-INF/services/io.vertx.core.spi.VerticleFactory'
     }
 }
+
+sourceSets {
+    generated{
+        java.srcDir "${projectDir}/src/generated/java"
+    }
+}
+
+task generateProxies(type: JavaCompile) {
+    group 'build'
+    description 'Generates the Vert.x proxies'
+    source = sourceSets.main.java
+    classpath = configurations.compile + configurations.compileOnly + configurations.annotationProcessor
+    options.annotationProcessorPath = configurations.annotationProcessor
+    options.compilerArgs = [
+            "-proc:only",
+            "-processor", "io.vertx.codegen.CodeGenProcessor",
+            "-Acodegen.output=${projectDir}/src/main"
+    ]
+    destinationDir = file("${projectDir}/src/generated/java")
+}
+
+compileJava{
+    dependsOn generateProxies
+    source += sourceSets.generated.java
+    options.compilerArgs += '-proc:none'
+}
+
+clean {
+    delete += sourceSets.generated.java.srcDirs
+}
+
