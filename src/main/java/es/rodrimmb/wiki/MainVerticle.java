@@ -1,5 +1,6 @@
 package es.rodrimmb.wiki;
 
+import es.rodrimmb.wiki.database.WikiDbVerticle;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.DeploymentOptions;
 import io.vertx.core.Promise;
@@ -22,7 +23,7 @@ public final class MainVerticle extends AbstractVerticle {
         dbVerticleDeployment.future().compose(id -> {
             Promise<String> httpVerticleDeployment = Promise.promise();
             vertx.deployVerticle(
-                    "es.rodrimmb.wiki.HttpServerVerticle",
+                    "es.rodrimmb.wiki.http.HttpServerVerticle",
                     new DeploymentOptions().setInstances(2),
                     httpVerticleDeployment
             );
