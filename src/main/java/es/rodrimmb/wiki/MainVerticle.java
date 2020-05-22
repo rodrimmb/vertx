@@ -18,13 +18,13 @@ public final class MainVerticle extends AbstractVerticle {
         //usamos Promise y su metodo compose() que hace que hasta que una promesa no se a acabado no se ejecuta lo que
         //tenemos en el metodo compose() (future() asegura que la Promise a acabado de ejecutarse y ejecuta compose())
         Promise<String> dbVerticleDeployment = Promise.promise();
-        vertx.deployVerticle(new WikiDbVerticle(), dbVerticleDeployment);
+        vertx.deployVerticle(new WikiDbVerticle(), new DeploymentOptions().setConfig(config()), dbVerticleDeployment);
 
         dbVerticleDeployment.future().compose(id -> {
             Promise<String> httpVerticleDeployment = Promise.promise();
             vertx.deployVerticle(
                     "es.rodrimmb.wiki.http.HttpServerVerticle",
-                    new DeploymentOptions().setInstances(2),
+                    new DeploymentOptions().setConfig(config()).setInstances(2),
                     httpVerticleDeployment
             );
 

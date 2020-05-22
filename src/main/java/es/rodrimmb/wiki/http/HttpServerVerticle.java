@@ -4,6 +4,7 @@ import com.github.rjeschke.txtmark.Processor;
 import es.rodrimmb.wiki.database.WikiDbService;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Promise;
+import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServer;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.Router;
@@ -135,10 +136,7 @@ public final class HttpServerVerticle extends AbstractVerticle {
                 JsonObject body = reply.result();
                 if(body.getBoolean("found")) {
                     //Si existe dirigimos a su pagina
-                    context.response()
-                            .setStatusCode(303)
-                            .putHeader("Location", "/wiki/"+body.getString("id"))
-                            .end();
+                    context.reroute(HttpMethod.GET, "/wiki/"+body.getString("id"));
                 } else {
                     //Si no existe creamos la pagina
                     String id = UUID.randomUUID().toString();
@@ -146,10 +144,7 @@ public final class HttpServerVerticle extends AbstractVerticle {
                             .format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSSSSS"));
                     dbService.createPage(id, name, creationDate, create -> {
                         if(create.succeeded()) {
-                            context.response()
-                                    .setStatusCode(303)
-                                    .putHeader("Location", "/wiki/"+id)
-                                    .end();
+                            context.reroute(HttpMethod.GET, "/wiki/"+id);
                         } else {
                             LOG.error("El servicio de DB no ha respondido correctamente", reply.cause());
                             context.fail(create.cause());
