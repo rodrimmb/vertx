@@ -1,9 +1,7 @@
 package es.rodrimmb.wiki;
 
 import es.rodrimmb.wiki.database.WikiDbVerticle;
-import io.vertx.core.DeploymentOptions;
-import io.vertx.core.MultiMap;
-import io.vertx.core.Vertx;
+import io.vertx.core.*;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.client.WebClient;
 import io.vertx.ext.web.codec.BodyCodec;
@@ -65,6 +63,7 @@ class MainVerticleTest {
                         testContext.verify(() -> {
                             assertThat(resp.statusCode(), is(200));
                             assertThat(resp.body(), containsString("<title>Wiki Home</title>"));
+                            assertThat(resp.body(), containsString("The Wiki is empty! Create new page"));
                             testContext.completeNow();
                         });
                     }));
@@ -88,6 +87,50 @@ class MainVerticleTest {
                             assertThat(resp.body(), containsString("<title>Edit page</title>"));
                             testContext.completeNow();
                         });
+                    }));
+        }));
+    }
+
+    @Test
+    @DisplayName("📃️ Add new page and go to 🏠‍️ main page with list of pages")
+    void add_page_and_go_home(VertxTestContext testContext) {
+        WebClient webClient = WebClient.create(vertx);
+        //Desplegamos el servidor y arrancamos la DB vacia
+        vertx.deployVerticle(new MainVerticle(), options, testContext.succeeding(id -> {
+            //Comprobamos que en la pagina principal el listado de paginas esta vacio
+            webClient.get(8080, "localhost", "/")
+                    .as(BodyCodec.string())
+                    .send(testContext.succeeding(respMainPage -> {
+                        testContext.verify(() -> {
+                            assertThat(respMainPage.statusCode(), is(200));
+                            assertThat(respMainPage.body(), containsString("<title>Wiki Home</title>"));
+                            assertThat(respMainPage.body(), containsString("The Wiki is empty! Create new page"));
+                        });
+
+                        //Añadimos una pagina que se llama "test"
+                        MultiMap form = MultiMap.caseInsensitiveMultiMap();
+                        form.set("name", "test");
+                        webClient.post(8080, "localhost", "/create")
+                                .followRedirects(true)
+                                .as(BodyCodec.string())
+                                .sendForm(form, testContext.succeeding(respPost -> {
+                                    testContext.verify(() -> {
+                                        assertThat(respPost.statusCode(), is(200));
+                                        assertThat(respPost.body(), containsString("<title>Edit page</title>"));
+                                    });
+
+                                    //Comprobamos que en la pagina principal el listado de paginas tiene la pagina que hemos añadido
+                                    webClient.get(8080, "localhost", "/")
+                                            .as(BodyCodec.string())
+                                            .send(testContext.succeeding(resp -> {
+                                                testContext.verify(() -> {
+                                                    assertThat(resp.statusCode(), is(200));
+                                                    assertThat(resp.body(), containsString("<title>Wiki Home</title>"));
+                                                    assertThat(resp.body(), containsString(">test</a>"));
+                                                    testContext.completeNow();
+                                                });
+                                            }));
+                                }));
                     }));
         }));
     }
