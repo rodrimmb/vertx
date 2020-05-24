@@ -146,8 +146,6 @@ public class WikiDbServiceVertxProxyHandler extends ProxyHandler {
         }
         case "deletePage": {
           service.deletePage((java.lang.String)json.getValue("id"),
-                        (java.lang.String)json.getValue("name"),
-                        (java.lang.String)json.getValue("deleteDate"),
                         HelperUtils.createHandler(msg));
           break;
         }

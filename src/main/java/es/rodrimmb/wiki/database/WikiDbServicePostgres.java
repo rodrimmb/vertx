@@ -10,6 +10,8 @@ import io.vertx.core.logging.LoggerFactory;
 import io.vertx.ext.jdbc.JDBCClient;
 import io.vertx.ext.sql.SQLConnection;
 
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
@@ -167,19 +169,31 @@ public final class WikiDbServicePostgres implements WikiDbService {
     }
 
     @Override
-    public WikiDbService deletePage(final String id, final String name, final String deleteDate,
-                                    final Handler<AsyncResult<Void>> resultHandler) {
-        JsonArray params = new JsonArray()
-                .add(name)
-                .add(deleteDate)
-                .add(id);
+    public WikiDbService deletePage(final String id, final Handler<AsyncResult<Void>> resultHandler) {
+        fetchPageById(id, pageToDelete -> {
+            if(pageToDelete.succeeded()) {
+                JsonObject json = pageToDelete.result();
 
-        dbClient.updateWithParams(sqlQueries.get(SqlQuery.DELETE_PAGE), params, update -> {
-            if(update.succeeded()) {
-                resultHandler.handle(Future.succeededFuture());
+                LocalDateTime now = LocalDateTime.now();
+                String name = json.getString("name") + "_deleted_"+now.hashCode();
+                String deleteDate = now.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSSSSS"));
+
+                JsonArray params = new JsonArray()
+                        .add(name)
+                        .add(deleteDate)
+                        .add(id);
+
+                dbClient.updateWithParams(sqlQueries.get(SqlQuery.DELETE_PAGE), params, update -> {
+                    if(update.succeeded()) {
+                        resultHandler.handle(Future.succeededFuture());
+                    } else {
+                        LOG.error("Error al ejecutar query {}", sqlQueries.get(SqlQuery.DELETE_PAGE), update.cause());
+                        resultHandler.handle(Future.failedFuture(update.cause()));
+                    }
+                });
             } else {
-                LOG.error("Error al ejecutar query {}", sqlQueries.get(SqlQuery.DELETE_PAGE), update.cause());
-                resultHandler.handle(Future.failedFuture(update.cause()));
+                LOG.error("Error al intentar obtener la pagina a borrar con id {}", id);
+                resultHandler.handle(Future.failedFuture(pageToDelete.cause()));
             }
         });
         return this;

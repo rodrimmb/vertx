@@ -34,7 +34,7 @@ public interface WikiDbService {
     WikiDbService savePage(String id, String content, String updateDate, Handler<AsyncResult<Void>> resultHandler);
 
     @Fluent
-    WikiDbService deletePage(String id, String name, String deleteDate, Handler<AsyncResult<Void>> resultHandler);
+    WikiDbService deletePage(String id, Handler<AsyncResult<Void>> resultHandler);
 
     @GenIgnore
     static WikiDbService create(JDBCClient dbClient, HashMap<SqlQuery, String> sqlQueries, Handler<AsyncResult<WikiDbService>> readyHandler) {

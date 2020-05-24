@@ -178,12 +178,9 @@ public final class HttpServerVerticle extends AbstractVerticle {
     }
 
     private void pageDeleteHandler(final RoutingContext context) {
-        LocalDateTime now = LocalDateTime.now();
         String id = context.request().getParam("id");
-        String name = context.request().getParam("name") + "_deleted_"+now.hashCode();
-        String deleteDate = now.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSSSSS"));
 
-        dbService.deletePage(id, name, deleteDate, reply -> {
+        dbService.deletePage(id, reply -> {
             if(reply.succeeded()) {
                 context.response()
                         .setStatusCode(303)

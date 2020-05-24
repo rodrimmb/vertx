@@ -167,15 +167,13 @@ public class WikiDbServiceVertxEBProxy implements WikiDbService {
     return this;
   }
   @Override
-  public  WikiDbService deletePage(String id, String name, String deleteDate, Handler<AsyncResult<Void>> resultHandler){
+  public  WikiDbService deletePage(String id, Handler<AsyncResult<Void>> resultHandler){
     if (closed) {
       resultHandler.handle(Future.failedFuture(new IllegalStateException("Proxy is closed")));
       return this;
     }
     JsonObject _json = new JsonObject();
     _json.put("id", id);
-    _json.put("name", name);
-    _json.put("deleteDate", deleteDate);
 
     DeliveryOptions _deliveryOptions = (_options != null) ? new DeliveryOptions(_options) : new DeliveryOptions();
     _deliveryOptions.addHeader("action", "deletePage");
