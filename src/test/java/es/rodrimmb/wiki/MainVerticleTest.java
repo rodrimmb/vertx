@@ -7,10 +7,7 @@ import io.vertx.ext.web.client.WebClient;
 import io.vertx.ext.web.codec.BodyCodec;
 import io.vertx.junit5.VertxExtension;
 import io.vertx.junit5.VertxTestContext;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
 
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -23,16 +20,15 @@ class MainVerticleTest {
 
     private Vertx vertx;
 
-    private DeploymentOptions options;
-
     @BeforeEach
     void setUp(VertxTestContext testContext) {
         vertx = Vertx.vertx();
         JsonObject jsonConfig = new JsonObject()
-                .put(WikiDbVerticle.CONFIG_WIKIDB_JDBC_URL, "jdbc:hsqldb:file:db/wiki")
+                .put(WikiDbVerticle.CONFIG_WIKIDB_JDBC_URL, "jdbc:hsqldb:mem:wiki;shutdown=true")
                 .put(WikiDbVerticle.CONFIG_WIKIDB_JDBC_DRIVER, "org.hsqldb.jdbcDriver")
-                .put(WikiDbVerticle.CONFIG_WIKIDB_SQL_QUERIES_RESOURCE_FILE, "src/test/resources/db-queries-test.properties");
-        options = new DeploymentOptions().setConfig(jsonConfig);
+                .put(WikiDbVerticle.CONFIG_WIKIDB_SQL_QUERIES_RESOURCE_FILE, "src/test/resources/db-queries-test.properties")
+                .put(WikiDbVerticle.CONFIG_WIKIDB_JDBC_MAX_POOL_SIZE, 4);
+        DeploymentOptions options = new DeploymentOptions().setConfig(jsonConfig);
 
         // Arrancamos la DB vacia con las configuraciones de HSQLDB y desplegamos el servidor
         vertx.deployVerticle(new MainVerticle(), options, testContext.completing());
@@ -40,6 +36,7 @@ class MainVerticleTest {
 
     @AfterEach
     void cleanup() {
+        assertThat(vertx.deploymentIDs().size(), is(3));
         vertx.close();
     }
 
