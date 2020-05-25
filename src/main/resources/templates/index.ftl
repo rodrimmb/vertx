@@ -25,7 +25,7 @@
             <ul>
                 <#list pages as page>
                     <li>
-                        <a href="/wiki/${page.key}">${page.value}</a>
+                        <a href="/wiki/${page.id}">${page.name}</a>
                     </li>
                 </#list>
             </ul>
