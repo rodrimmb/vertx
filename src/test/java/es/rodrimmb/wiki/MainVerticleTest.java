@@ -1,18 +1,25 @@
 package es.rodrimmb.wiki;
 
 import es.rodrimmb.wiki.database.WikiDbVerticle;
-import io.vertx.core.*;
+import io.vertx.core.DeploymentOptions;
+import io.vertx.core.MultiMap;
+import io.vertx.core.Vertx;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.client.WebClient;
+import io.vertx.ext.web.client.WebClientOptions;
 import io.vertx.ext.web.codec.BodyCodec;
 import io.vertx.junit5.VertxExtension;
 import io.vertx.junit5.VertxTestContext;
-import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
+import java.util.UUID;
+
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.containsString;
-import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.*;
 
 
 @ExtendWith(VertxExtension.class)
@@ -123,6 +130,98 @@ class MainVerticleTest {
                                                 assertThat(resp.body(), containsString(">test</a>"));
                                                 testContext.completeNow();
                                             });
+                                        }));
+                            }));
+                }));
+    }
+
+    @Test
+    @DisplayName("🎯 All CRUD operations in API")
+    void api_crud(VertxTestContext testContext) {
+        WebClient webClient = WebClient.create(vertx, new WebClientOptions()
+                        .setDefaultHost("localhost")
+                        .setDefaultPort(8080));
+        JsonObject jsonCreatePage = new JsonObject()
+                .put("id", UUID.randomUUID().toString())
+                .put("name", "CRUD API test");
+
+        //Creo una pagina
+        webClient.post("/api/pages")
+                .as(BodyCodec.jsonObject())
+                .sendJsonObject(jsonCreatePage, testContext.succeeding(createPage -> {
+                    testContext.verify(() -> {
+                        JsonObject responseCreatePage = createPage.body();
+                        assertThat(createPage.statusCode(), is(200));
+                        assertThat(responseCreatePage.getBoolean("success"), is(true));
+                    });
+                    //Obtengo todas las paginas para comprobar que esta la que he creado
+                    webClient.get("/api/pages")
+                            .as(BodyCodec.jsonObject())
+                            .send(testContext.succeeding(getAllPages -> {
+                                JsonObject responseGetAllPages = getAllPages.body();
+                                String id = responseGetAllPages.getJsonArray("pages").getJsonObject(0).getString("id");
+                                testContext.verify(() -> {
+                                    assertThat(getAllPages.statusCode(), is(200));
+                                    assertThat(responseGetAllPages.getBoolean("success"), is(true));
+                                    assertThat(responseGetAllPages.getJsonArray("pages").getList().size(), is(1));
+                                    assertThat(responseGetAllPages.getJsonArray("pages").getJsonObject(0).getString("id"), is(notNullValue()));
+                                    assertThat(responseGetAllPages.getJsonArray("pages").getJsonObject(0).getString("name"), is("crud api test"));
+                                });
+
+                                JsonObject jsonUpdatePage = new JsonObject()
+                                        .put("content", "# Content of test");
+
+                                //Actualizo el contenido de la pagina que he creado
+                                webClient.put("/api/pages/" + id)
+                                        .as(BodyCodec.jsonObject())
+                                        .sendJsonObject(jsonUpdatePage, testContext.succeeding(updatePage -> {
+                                            testContext.verify(() -> {
+                                                JsonObject responseUpdatePage = updatePage.body();
+                                                assertThat(updatePage.statusCode(), is(200));
+                                                assertThat(responseUpdatePage.getBoolean("success"), is(true));
+                                            });
+
+                                            //Obtengo la pagina actualizada
+                                            webClient.get("/api/pages/" + id)
+                                                    .as(BodyCodec.jsonObject())
+                                                    .send(testContext.succeeding(getPage -> {
+                                                        JsonObject jsonGetPage = getPage.body().getJsonObject("page");
+                                                        testContext.verify(() -> {
+                                                            assertThat(getPage.statusCode(), is(200));
+                                                            assertThat(getPage.body().getBoolean("success"), is(true));
+                                                            assertThat(jsonGetPage.getString("id"), is(id));
+                                                            assertThat(jsonGetPage.getString("name"),
+                                                                    is("crud api test"));
+                                                            assertThat(jsonGetPage.getString("content"),
+                                                                    is("# Content of test"));
+                                                            assertThat(jsonGetPage.getString("html"),
+                                                                    is("<h1>Content of test</h1>\n"));
+                                                        });
+
+                                                        //Borro la pagina
+                                                        webClient.delete("/api/pages/" + id)
+                                                                .as(BodyCodec.jsonObject())
+                                                                .send(testContext.succeeding(deletePage -> {
+                                                                    testContext.verify(() -> {
+                                                                        JsonObject responseDeletePage = deletePage.body();
+                                                                        assertThat(deletePage.statusCode(), is(200));
+                                                                        assertThat(responseDeletePage.getBoolean("success"), is(true));
+                                                                    });
+
+                                                                    //Obtengo todas las paginas para ver que se ha borrado correctamente
+                                                                    webClient.get("/api/pages")
+                                                                            .as(BodyCodec.jsonObject())
+                                                                            .send(testContext.succeeding(getAllPages2 -> {
+                                                                                JsonObject responseGetAllPages2 = getAllPages2.body();
+                                                                                testContext.verify(() -> {
+                                                                                    assertThat(getAllPages2.statusCode(), is(200));
+                                                                                    assertThat(responseGetAllPages2.getBoolean("success"), is(true));
+                                                                                    assertThat(responseGetAllPages2.getJsonArray("pages").getList().size(), is(0));
+                                                                                    testContext.completeNow();
+                                                                                });
+                                                                            }));
+                                                                }));
+                                                    }));
                                         }));
                             }));
                 }));
