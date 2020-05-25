@@ -51,17 +51,17 @@ public final class WikiDbServicePostgres implements WikiDbService {
     }
 
     @Override
-    public WikiDbService fetchAllPages(final Handler<AsyncResult<JsonArray>> resultHandler) {
+    public WikiDbService fetchAllPages(final Handler<AsyncResult<List<JsonObject>>> resultHandler) {
         dbClient.query(sqlQueries.get(SqlQuery.ALL_PAGES), result -> {
             if(result.succeeded()) {
                 List<JsonObject> pages = result.result()
                         .getResults()
                         .stream()
                         .map(json -> new JsonObject()
-                                .put("key", json.getString(0))
-                                .put("value", json.getString(1))
+                                .put("id", json.getString(0))
+                                .put("name", json.getString(1))
                         ).collect(Collectors.toList());
-                resultHandler.handle(Future.succeededFuture(new JsonArray(pages)));
+                resultHandler.handle(Future.succeededFuture(pages));
             } else {
                 LOG.error("Error al ejecutar query {}", sqlQueries.get(SqlQuery.ALL_PAGES), result.cause());
                 resultHandler.handle(Future.failedFuture(result.cause()));
@@ -135,7 +135,7 @@ public final class WikiDbServicePostgres implements WikiDbService {
         String creationDate = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSSSSS"));
         JsonArray params = new JsonArray()
                 .add(id)
-                .add(name)
+                .add(name.toLowerCase())
                 .add(creationDate);
 
         dbClient.updateWithParams(sqlQuery, params, update -> {

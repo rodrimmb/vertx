@@ -61,7 +61,7 @@ class WikiDbServiceTest {
                 service.savePage(id, content, testContext.succeeding(v2 -> {
                     service.fetchAllPages(testContext.succeeding(array1 -> {
                         testContext.verify(() -> {
-                            assertThat(array1.getList().size(), is(1));
+                            assertThat(array1.size(), is(1));
                         });
 
                         service.fetchPageByName(name, testContext.succeeding(json2 -> {

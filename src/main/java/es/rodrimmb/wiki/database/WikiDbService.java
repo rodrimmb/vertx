@@ -7,11 +7,11 @@ import io.vertx.codegen.annotations.VertxGen;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
-import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.jdbc.JDBCClient;
 
 import java.util.HashMap;
+import java.util.List;
 
 
 @ProxyGen
@@ -19,7 +19,7 @@ import java.util.HashMap;
 public interface WikiDbService {
 
     @Fluent
-    WikiDbService fetchAllPages(Handler<AsyncResult<JsonArray>> resultHandler);
+    WikiDbService fetchAllPages(Handler<AsyncResult<List<JsonObject>>> resultHandler);
 
     @Fluent
     WikiDbService fetchPageById(String id, Handler<AsyncResult<JsonObject>> resultHandler);

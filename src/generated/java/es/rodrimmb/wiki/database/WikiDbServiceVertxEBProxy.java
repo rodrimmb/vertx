@@ -33,7 +33,7 @@ import io.vertx.serviceproxy.ServiceException;
 import io.vertx.serviceproxy.ServiceExceptionMessageCodec;
 import io.vertx.serviceproxy.ProxyUtils;
 
-import io.vertx.core.json.JsonArray;
+import java.util.List;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
@@ -64,7 +64,7 @@ public class WikiDbServiceVertxEBProxy implements WikiDbService {
   }
 
   @Override
-  public  WikiDbService fetchAllPages(Handler<AsyncResult<JsonArray>> resultHandler){
+  public  WikiDbService fetchAllPages(Handler<AsyncResult<List<JsonObject>>> resultHandler){
     if (closed) {
       resultHandler.handle(Future.failedFuture(new IllegalStateException("Proxy is closed")));
       return this;
@@ -77,7 +77,7 @@ public class WikiDbServiceVertxEBProxy implements WikiDbService {
       if (res.failed()) {
         resultHandler.handle(Future.failedFuture(res.cause()));
       } else {
-        resultHandler.handle(Future.succeededFuture(res.result().body()));
+        resultHandler.handle(Future.succeededFuture(ProxyUtils.convertList(res.result().body().getList())));
       }
     });
     return this;

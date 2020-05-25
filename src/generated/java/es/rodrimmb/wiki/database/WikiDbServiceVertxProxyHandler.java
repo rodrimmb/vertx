@@ -41,7 +41,7 @@ import io.vertx.serviceproxy.ServiceException;
 import io.vertx.serviceproxy.ServiceExceptionMessageCodec;
 import io.vertx.serviceproxy.HelperUtils;
 
-import io.vertx.core.json.JsonArray;
+import java.util.List;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
@@ -117,7 +117,7 @@ public class WikiDbServiceVertxProxyHandler extends ProxyHandler {
       accessed();
       switch (action) {
         case "fetchAllPages": {
-          service.fetchAllPages(HelperUtils.createHandler(msg));
+          service.fetchAllPages(HelperUtils.createListHandler(msg));
           break;
         }
         case "fetchPageById": {
