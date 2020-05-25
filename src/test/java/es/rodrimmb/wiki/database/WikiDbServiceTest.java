@@ -11,8 +11,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.UUID;
 
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -50,9 +48,7 @@ class WikiDbServiceTest {
     void crud_operations(VertxTestContext testContext) {
         String id = UUID.randomUUID().toString();
         String name = "name";
-        String creationDate = LocalDateTime.now()
-                .format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSSSSS"));
-        service.createPage(id, name, creationDate, testContext.succeeding(v1 -> {
+        service.createPage(id, name, testContext.succeeding(v1 -> {
             service.fetchPageById(id, testContext.succeeding(json1 -> {
                 testContext.verify(() -> {
                     assertThat(json1.getBoolean("found"), is(true));
@@ -62,9 +58,7 @@ class WikiDbServiceTest {
                 });
 
                 String content = "Some content";
-                String updateDate = LocalDateTime.now()
-                        .format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSSSSS"));
-                service.savePage(id, content, updateDate, testContext.succeeding(v2 -> {
+                service.savePage(id, content, testContext.succeeding(v2 -> {
                     service.fetchAllPages(testContext.succeeding(array1 -> {
                         testContext.verify(() -> {
                             assertThat(array1.getList().size(), is(1));

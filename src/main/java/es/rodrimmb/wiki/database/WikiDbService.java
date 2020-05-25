@@ -28,10 +28,10 @@ public interface WikiDbService {
     WikiDbService fetchPageByName(String name, Handler<AsyncResult<JsonObject>> resultHandler);
 
     @Fluent
-    WikiDbService createPage(String id, String name, String creationDate, Handler<AsyncResult<Void>> resultHandler);
+    WikiDbService createPage(String id, String name, Handler<AsyncResult<Void>> resultHandler);
 
     @Fluent
-    WikiDbService savePage(String id, String content, String updateDate, Handler<AsyncResult<Void>> resultHandler);
+    WikiDbService savePage(String id, String content, Handler<AsyncResult<Void>> resultHandler);
 
     @Fluent
     WikiDbService deletePage(String id, Handler<AsyncResult<Void>> resultHandler);

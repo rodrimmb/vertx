@@ -129,13 +129,13 @@ public final class WikiDbServicePostgres implements WikiDbService {
     }
 
     @Override
-    public WikiDbService createPage(final String id, final String name, final String creationDate,
+    public WikiDbService createPage(final String id, final String name,
                                     final Handler<AsyncResult<Void>> resultHandler) {
         String sqlQuery = sqlQueries.get(SqlQuery.CREATE_PAGE);
+        String creationDate = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSSSSS"));
         JsonArray params = new JsonArray()
                 .add(id)
                 .add(name)
-                .add("")
                 .add(creationDate);
 
         dbClient.updateWithParams(sqlQuery, params, update -> {
@@ -150,8 +150,9 @@ public final class WikiDbServicePostgres implements WikiDbService {
     }
 
     @Override
-    public WikiDbService savePage(final String id, final String content, final String updateDate,
+    public WikiDbService savePage(final String id, final String content,
                                   final Handler<AsyncResult<Void>> resultHandler) {
+        String updateDate = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSSSSS"));
         JsonArray params = new JsonArray()
                 .add(content)
                 .add(updateDate)

@@ -123,7 +123,7 @@ public class WikiDbServiceVertxEBProxy implements WikiDbService {
     return this;
   }
   @Override
-  public  WikiDbService createPage(String id, String name, String creationDate, Handler<AsyncResult<Void>> resultHandler){
+  public  WikiDbService createPage(String id, String name, Handler<AsyncResult<Void>> resultHandler){
     if (closed) {
       resultHandler.handle(Future.failedFuture(new IllegalStateException("Proxy is closed")));
       return this;
@@ -131,7 +131,6 @@ public class WikiDbServiceVertxEBProxy implements WikiDbService {
     JsonObject _json = new JsonObject();
     _json.put("id", id);
     _json.put("name", name);
-    _json.put("creationDate", creationDate);
 
     DeliveryOptions _deliveryOptions = (_options != null) ? new DeliveryOptions(_options) : new DeliveryOptions();
     _deliveryOptions.addHeader("action", "createPage");
@@ -145,7 +144,7 @@ public class WikiDbServiceVertxEBProxy implements WikiDbService {
     return this;
   }
   @Override
-  public  WikiDbService savePage(String id, String content, String updateDate, Handler<AsyncResult<Void>> resultHandler){
+  public  WikiDbService savePage(String id, String content, Handler<AsyncResult<Void>> resultHandler){
     if (closed) {
       resultHandler.handle(Future.failedFuture(new IllegalStateException("Proxy is closed")));
       return this;
@@ -153,7 +152,6 @@ public class WikiDbServiceVertxEBProxy implements WikiDbService {
     JsonObject _json = new JsonObject();
     _json.put("id", id);
     _json.put("content", content);
-    _json.put("updateDate", updateDate);
 
     DeliveryOptions _deliveryOptions = (_options != null) ? new DeliveryOptions(_options) : new DeliveryOptions();
     _deliveryOptions.addHeader("action", "savePage");
