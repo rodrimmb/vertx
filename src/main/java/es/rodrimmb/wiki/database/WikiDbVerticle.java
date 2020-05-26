@@ -14,17 +14,11 @@ import java.io.InputStream;
 import java.util.HashMap;
 import java.util.Properties;
 
+import static es.rodrimmb.wiki.database.DatabaseConstants.*;
+
 public final class WikiDbVerticle extends AbstractVerticle {
 
     private static final Logger LOG = LoggerFactory.getLogger(WikiDbVerticle.class);
-
-    public static final String CONFIG_WIKIDB_JDBC_URL = "wikidb.jdbc.url";
-    public static final String CONFIG_WIKIDB_JDBC_DB = "wikidb.jdbc.db";
-    public static final String CONFIG_WIKIDB_JDBC_USER = "wikidb.jdbc.user";
-    public static final String CONFIG_WIKIDB_JDBC_PASSWORD = "wikidb.jdbc.password";
-    public static final String CONFIG_WIKIDB_JDBC_DRIVER = "wikidb.jdbc.driver";
-    public static final String CONFIG_WIKIDB_JDBC_MAX_POOL_SIZE = "wikidb.jdbc.max_pool_size";
-    public static final String CONFIG_WIKIDB_SQL_QUERIES_RESOURCE_FILE = "wikidb.sqlqueries.resource.file";
 
     public static final String CONFIG_WIKIDB_QUEUE = "wikidb.queue";
 
@@ -33,11 +27,11 @@ public final class WikiDbVerticle extends AbstractVerticle {
     @Override
     public void start(final Promise<Void> promise) throws Exception {
         JsonObject config = new JsonObject()
-                .put("url", config().getString(CONFIG_WIKIDB_JDBC_URL, "jdbc:postgresql://localhost:5432/rainbow_database"))
-                .put("user", config().getString(CONFIG_WIKIDB_JDBC_USER, "unicorn_user"))
-                .put("password", config().getString(CONFIG_WIKIDB_JDBC_PASSWORD, "magical_password"))
-                .put("driver_class", config().getString(CONFIG_WIKIDB_JDBC_DRIVER, "org.postgresql.Driver"))
-                .put("max_pool_size", config().getInteger(CONFIG_WIKIDB_JDBC_MAX_POOL_SIZE, 30));
+                .put("url", config().getString(CONFIG_WIKIDB_JDBC_URL, DEFAULT_CONFIG_WIKIDB_JDBC_URL))
+                .put("user", config().getString(CONFIG_WIKIDB_JDBC_USER, DEFAULT_CONFIG_WIKIDB_JDBC_USER))
+                .put("password", config().getString(CONFIG_WIKIDB_JDBC_PASSWORD, DEFAULT_CONFIG_WIKIDB_JDBC_PASSWORD))
+                .put("driver_class", config().getString(CONFIG_WIKIDB_JDBC_DRIVER, DEFAULT_CONFIG_WIKIDB_JDBC_DRIVER))
+                .put("max_pool_size", config().getInteger(CONFIG_WIKIDB_JDBC_MAX_POOL_SIZE, DEFAULT_CONFIG_WIKIDB_JDBC_MAX_POOL_SIZE));
 
         HashMap<SqlQuery, String> sqlQueries = loadSqlQueries();
 
