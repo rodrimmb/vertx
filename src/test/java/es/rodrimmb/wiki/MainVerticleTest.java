@@ -1,10 +1,9 @@
 package es.rodrimmb.wiki;
 
 import es.rodrimmb.wiki.database.WikiDbVerticle;
-import io.vertx.core.DeploymentOptions;
-import io.vertx.core.MultiMap;
-import io.vertx.core.Vertx;
+import io.vertx.core.*;
 import io.vertx.core.json.JsonObject;
+import io.vertx.ext.web.client.HttpResponse;
 import io.vertx.ext.web.client.WebClient;
 import io.vertx.ext.web.client.WebClientOptions;
 import io.vertx.ext.web.codec.BodyCodec;
@@ -225,5 +224,103 @@ class MainVerticleTest {
                                         }));
                             }));
                 }));
+    }
+
+    @Test
+    @DisplayName("🎯 All CRUD operations in API with promises.")
+    void api_crud_with_promises(VertxTestContext context) {
+        WebClient webClient = WebClient.create(vertx, new WebClientOptions()
+                .setDefaultHost("localhost")
+                .setDefaultPort(8080));
+        JsonObject jsonCreatePage = new JsonObject()
+                .put("id", UUID.randomUUID().toString())
+                .put("name", "CRUD API test");
+
+        Promise<HttpResponse<JsonObject>> postPagePromise = Promise.promise();
+        webClient.post("/api/pages")
+                .as(BodyCodec.jsonObject())
+                .sendJsonObject(jsonCreatePage, postPagePromise);
+
+        Future<HttpResponse<JsonObject>> getAllPagesFuture = postPagePromise.future().compose(resp -> {
+            assertThat(resp.statusCode(), is(200));
+            assertThat(resp.body().getBoolean("success"), is(true));
+
+            Promise<HttpResponse<JsonObject>> promise = Promise.promise();
+            webClient.get("/api/pages").as(BodyCodec.jsonObject()).send(promise);
+            return promise.future();
+        });
+
+        Future<HttpResponse<JsonObject>> updatePageFuture = getAllPagesFuture.compose(resp -> {
+            assertThat(resp.statusCode(), is(200));
+            assertThat(resp.body().getBoolean("success"), is(true));
+            assertThat(resp.body().getJsonArray("pages").getList().size(), is(1));
+            assertThat(resp.body().getJsonArray("pages").getJsonObject(0).getString("id"), is(notNullValue()));
+            assertThat(resp.body().getJsonArray("pages").getJsonObject(0).getString("name"), is("crud api test"));
+
+
+            String id = resp.body().getJsonArray("pages").getJsonObject(0).getString("id");
+            JsonObject jsonUpdatePage = new JsonObject().put("content", "# Content of test");
+            Promise<HttpResponse<JsonObject>> promise = Promise.promise();
+            webClient.put("/api/pages/" + id).as(BodyCodec.jsonObject()).sendJsonObject(jsonUpdatePage, promise);
+            return promise.future();
+        });
+
+        Future<HttpResponse<JsonObject>> getAllPagesFuture2 = updatePageFuture.compose(resp -> {
+            assertThat(resp.statusCode(), is(200));
+            assertThat(resp.body().getBoolean("success"), is(true));
+
+            Promise<HttpResponse<JsonObject>> promise = Promise.promise();
+            webClient.get("/api/pages").as(BodyCodec.jsonObject()).send(promise);
+            return promise.future();
+        });
+
+        Future<HttpResponse<JsonObject>> getPageFuture = getAllPagesFuture2.compose(resp -> {
+            assertThat(resp.statusCode(), is(200));
+            assertThat(resp.body().getBoolean("success"), is(true));
+            assertThat(resp.body().getJsonArray("pages").getList().size(), is(1));
+            assertThat(resp.body().getJsonArray("pages").getJsonObject(0).getString("id"), is(notNullValue()));
+            assertThat(resp.body().getJsonArray("pages").getJsonObject(0).getString("name"), is("crud api test"));
+            String id = resp.body().getJsonArray("pages").getJsonObject(0).getString("id");
+
+            Promise<HttpResponse<JsonObject>> promise = Promise.promise();
+            webClient.get("/api/pages/" + id).as(BodyCodec.jsonObject()).send(promise);
+            return promise.future();
+        });
+
+        Future<HttpResponse<JsonObject>> deletePageFuture = getPageFuture.compose(resp -> {
+            assertThat(resp.statusCode(), is(200));
+            assertThat(resp.body().getBoolean("success"), is(true));
+            assertThat(resp.body().getJsonObject("page").getString("id"), is(notNullValue()));
+            assertThat(resp.body().getJsonObject("page").getString("name"), is("crud api test"));
+            assertThat(resp.body().getJsonObject("page").getString("content"), is("# Content of test"));
+            assertThat(resp.body().getJsonObject("page").getString("html"), is("<h1>Content of test</h1>\n"));
+
+            String id = resp.body().getJsonObject("page").getString("id");
+            Promise<HttpResponse<JsonObject>> promise = Promise.promise();
+            webClient.delete("/api/pages/" + id).as(BodyCodec.jsonObject()).send(promise);
+            return promise.future();
+        });
+
+        Future<HttpResponse<JsonObject>> getAllPagesFuture3 = deletePageFuture.compose(resp -> {
+            assertThat(resp.statusCode(), is(200));
+            assertThat(resp.body().getBoolean("success"), is(true));
+
+            Promise<HttpResponse<JsonObject>> promise = Promise.promise();
+            webClient.get("/api/pages").as(BodyCodec.jsonObject()).send(promise);
+            return promise.future();
+        });
+
+        getAllPagesFuture3.onComplete(asyncResult -> {
+            if(asyncResult.succeeded()) {
+                HttpResponse<JsonObject> result = asyncResult.result();
+                assertThat(result.statusCode(), is(200));
+                assertThat(result.body().getBoolean("success"), is(true));
+                assertThat(result.body().getJsonArray("pages").getList().size(), is(0));
+
+            } else {
+                assertThat(asyncResult.cause(), is(nullValue()));
+            }
+            context.completeNow();
+        });
     }
 }
